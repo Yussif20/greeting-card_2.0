@@ -8,13 +8,16 @@ const CardSelector = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const [name, setName] = useState('');
+  const [extraInfo, setExtraInfo] = useState('');
   const [color, setColor] = useState('#ffffff');
   const [namePosition, setNamePosition] = useState({ x: 200, y: 356 });
+  const [photoPosition, setPhotoPosition] = useState({ x: 200, y: 356 });
   const [font, setFont] = useState('Cairo');
   const [fontStyle, setFontStyle] = useState('normal');
   const [activeTab, setActiveTab] = useState('RHC');
   const [fontSize, setFontSize] = useState(40);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [positionForName, setPositionForName] = useState(true);
   const canvasRef = useRef(null);
   const tabRefs = useRef([]);
   const [underlineStyle, setUnderlineStyle] = useState({ left: '0px' });
@@ -93,7 +96,10 @@ const CardSelector = () => {
     img.src = imgSrc;
     img.onload = () => {
       setSelectedImage(img);
-      setNamePosition({ x: img.width / 2, y: img.height / 2 });
+      const centerX = img.width / 2;
+      const centerY = img.height / 2;
+      setNamePosition({ x: centerX + 100, y: centerY });
+      setPhotoPosition({ x: centerX - 100, y: centerY });
     };
   };
 
@@ -133,44 +139,94 @@ const CardSelector = () => {
 
     const baseFontSize = Math.min(originalWidth, originalHeight) * 0.25;
     const adjustedFontSize = fontSize || baseFontSize;
+    const extraFontSize = adjustedFontSize * 0.7;
 
-    const fontString = `${fontStyle === 'bold' ? 'bold ' : ''}${
+    const nameFontString = `${fontStyle === 'bold' ? 'bold ' : ''}${
       fontStyle === 'italic' ? 'italic ' : ''
     }${adjustedFontSize}px "${font}"`;
-    ctx.font = fontString;
-    ctx.fillStyle = color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle'; // Center text vertically
+    const extraFontString = `${fontStyle === 'bold' ? 'bold ' : ''}${
+      fontStyle === 'italic' ? 'italic ' : ''
+    }${extraFontSize}px "${font}"`;
 
     const text = name || t('enter_name');
+    const extraText = extraInfo || '';
     const textWidth = ctx.measureText(text).width;
+    const extraWidth = ctx.measureText(extraText).width;
+    const textBlockWidth = Math.max(textWidth, extraWidth);
+    const isRTL = i18n.dir() === 'rtl';
+
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
     if (uploadedPhoto) {
-      const photoSize = adjustedFontSize * 2.0; // Larger photo size
-      const photoX = namePosition.x - (textWidth / 2 + photoSize / 2 + 15); // Space between photo and text
-      const photoY = namePosition.y - photoSize / 2; // Vertically center photo
+      const photoSize = adjustedFontSize * 2.0;
+      const minGap = 60;
+      const baseGap = isRTL ? adjustedFontSize * 0.6 : adjustedFontSize * 0.5;
+      const gap = Math.max(baseGap, minGap);
 
-      // Draw circular photo
+      const photoX = photoPosition.x - photoSize / 2;
+      const textX = namePosition.x;
+
+      const photoRight = photoX + photoSize;
+      const textLeft = textX - textBlockWidth / 2;
+      if (photoRight + gap > textLeft) {
+        setNamePosition({
+          ...namePosition,
+          x: photoRight + gap + textBlockWidth / 2,
+        });
+        return debouncedDrawPreview();
+      }
+
       ctx.save();
       ctx.beginPath();
       ctx.arc(
         photoX + photoSize / 2,
-        photoY + photoSize / 2,
+        photoPosition.y,
         photoSize / 2,
         0,
         Math.PI * 2
       );
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(uploadedPhoto, photoX, photoY, photoSize, photoSize);
+      ctx.drawImage(
+        uploadedPhoto,
+        photoX,
+        photoPosition.y - photoSize / 2,
+        photoSize,
+        photoSize
+      );
       ctx.restore();
 
-      // Draw name centered next to photo
-      const nameX = photoX + photoSize + 15 + textWidth / 2; // Center name horizontally next to photo
-      const nameY = namePosition.y; // Already centered vertically
-      ctx.fillText(text, nameX, nameY);
+      const nameY = extraText
+        ? namePosition.y - (isRTL ? extraFontSize + 2 : extraFontSize / 2 + 2)
+        : namePosition.y;
+      const extraY = extraText
+        ? namePosition.y + (isRTL ? extraFontSize + 2 : extraFontSize / 2 + 2)
+        : null;
+
+      ctx.font = nameFontString;
+      ctx.fillText(text, textX, nameY);
+
+      if (extraText) {
+        ctx.font = extraFontString;
+        ctx.fillText(extraText, textX, extraY);
+      }
     } else {
-      ctx.fillText(text, namePosition.x, namePosition.y);
+      const nameY = extraText
+        ? namePosition.y - (isRTL ? extraFontSize + 2 : extraFontSize / 2 + 2)
+        : namePosition.y;
+      const extraY = extraText
+        ? namePosition.y + (isRTL ? extraFontSize + 2 : extraFontSize / 2 + 2)
+        : null;
+
+      ctx.font = nameFontString;
+      ctx.fillText(text, namePosition.x, nameY);
+
+      if (extraText) {
+        ctx.font = extraFontString;
+        ctx.fillText(extraText, namePosition.x, extraY);
+      }
     }
   };
 
@@ -189,7 +245,11 @@ const CardSelector = () => {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
-    setNamePosition({ x, y });
+    if (positionForName) {
+      setNamePosition({ x, y });
+    } else {
+      setPhotoPosition({ x, y });
+    }
     debouncedDrawPreview();
   };
 
@@ -267,8 +327,10 @@ const CardSelector = () => {
   }, [
     selectedImage,
     name,
+    extraInfo,
     color,
     namePosition,
+    photoPosition,
     font,
     fontStyle,
     fontSize,
@@ -379,14 +441,32 @@ const CardSelector = () => {
 
             <div className="flex flex-col gap-1">
               <span className="text-sm text-[#243e87] font-medium">
-                {t('guide_photo') || 'Upload Photo'}
+                {t('guide_extra_info') || 'Extra Info'}
               </span>
               <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoUpload}
-                className="p-2 w-full bg-white border border-gray-300 rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-[#243e87]"
+                type="text"
+                value={extraInfo}
+                onChange={(e) => setExtraInfo(e.target.value)}
+                placeholder={t('enter_extra_info')}
+                className="p-2 w-full bg-white border border-gray-300 rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-[#243e87] focus:border-transparent transition-all duration-200"
               />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-sm text-[#243e87] font-medium">
+                {t('guide_photo') || 'Upload Photo'}
+              </span>
+              <label className="relative block">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="p-2 w-full bg-white border border-gray-300 rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-[#243e87] opacity-0 absolute"
+                />
+                <div className="p-2 w-full bg-white border border-gray-300 rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)] text-gray-500 cursor-pointer hover:bg-gray-50 transition-all duration-200">
+                  {uploadedPhoto ? t('photo_uploaded') : t('choose_photo')}
+                </div>
+              </label>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -468,11 +548,41 @@ const CardSelector = () => {
         </div>
 
         <div className="w-full lg:w-1/2 p-4 flex flex-col items-center justify-center gap-4">
-          <span className="text-sm text-gray-500">
-            {i18n.language === 'ar'
-              ? `(لتحديد مكان وضع الاسم على الصورة اضغط أو المس الصورة واختر المكان المناسب)`
-              : '(Click or touch the image to set name position)'}
-          </span>
+          {/* Toggle Switch */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-[#243e87] font-medium">
+              {positionForName ? t('name') || 'Name' : t('photo') || 'Photo'}
+            </span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!positionForName}
+                onChange={() => setPositionForName(!positionForName)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#243e87] transition-colors duration-300 relative">
+                <div
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ${
+                    i18n.dir() === 'rtl'
+                      ? positionForName
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                      : positionForName
+                      ? 'translate-x-0'
+                      : 'translate-x-5'
+                  }`}
+                ></div>
+              </div>
+            </label>
+            <span className="text-sm text-gray-500">
+              {i18n.language === 'ar'
+                ? `(اضغط لتحديد موقع ${positionForName ? 'الاسم' : 'الصورة'})`
+                : `(Click to set ${
+                    positionForName ? 'name' : 'photo'
+                  } position)`}
+            </span>
+          </div>
+
           <canvas
             ref={canvasRef}
             className="w-full h-auto border border-gray-300 rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.15)] cursor-crosshair"

@@ -27,7 +27,12 @@ const resources = {
       "share_title": "My Custom Card",
       "share_text": "Check out this card I created!",
       "share_fallback": "Sharing not supported. Image downloaded—please share it manually.",
-      "share_error": "Failed to share image. Please download and share manually."
+      "share_error": "Failed to share image. Please download and share manually.",
+      "guide_photo": "Upload Photo",
+      "choose_photo": "Choose a photo",
+      "photo_uploaded": "Photo uploaded",
+      "guide_job_title": "Job Title",
+  "enter_job_title": "Enter your job title",
     },
   },
   ar: {
@@ -54,7 +59,12 @@ const resources = {
       "share_title": "بطاقتي المخصصة",
       "share_text": "شاهد هذه البطاقة التي أنشأتها!",
       "share_fallback": "المشاركة غير مدعومة. تم تنزيل الصورة—يرجى مشاركتها يدويًا.",
-      "share_error": "فشل في مشاركة الصورة. يرجى تنزيلها ومشاركتها يدويًا."
+      "share_error": "فشل في مشاركة الصورة. يرجى تنزيلها ومشاركتها يدويًا.",
+      "guide_photo": "تحميل الصورة",
+      "choose_photo": "اختر صورة",
+      "photo_uploaded": "تم تحميل الصورة",
+      "guide_job_title": "المسمى الوظيفي",
+  "enter_job_title": "أدخل مسمى وظيفتك",
     },
   },
 };
